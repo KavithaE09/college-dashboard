@@ -1,0 +1,66 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Helper function for API calls
+const apiCall = async (endpoint, options = {}) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Something went wrong');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+};
+
+// Student API
+export const studentAPI = {
+  // Get all students
+  getAll: () => apiCall('/students'),
+
+  // Get dashboard statistics
+  getStats: () => apiCall('/students/stats'),
+
+  // Create new student record
+  create: (studentData) => apiCall('/students', {
+    method: 'POST',
+    body: JSON.stringify(studentData),
+  }),
+
+  // Update student record
+  update: (id, studentData) => apiCall(`/students/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(studentData),
+  }),
+
+  // Delete student record
+  delete: (id) => apiCall(`/students/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+// Auth API
+export const authAPI = {
+  // Check authentication status
+  checkAuth: () => apiCall('/auth/check'),
+
+  // Logout
+  logout: () => apiCall('/auth/logout', { method: 'POST' }),
+};
+
+export default {
+  student: studentAPI,
+  auth: authAPI,
+};

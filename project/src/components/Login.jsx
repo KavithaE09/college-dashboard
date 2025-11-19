@@ -2,33 +2,67 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Chrome } from 'lucide-react';
 import { useNavigate } from '../hooks/useNavigate';
+import { authAPI } from '../api/api';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [username, setUsername] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleSignIn = async () => {
-    if (!name.trim()) {
-      alert('Please enter your name');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email.trim() || !password.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (isRegisterMode && !username.trim()) {
+      setError('Please enter a username');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const userData = {
-        id: Date.now().toString(),
-        name,
-        email: email || `user_${Date.now()}@example.com`,
-      };
+      if (isRegisterMode) {
+        // Register new user
+        const response = await authAPI.register({
+          username,
+          email,
+          password,
+          role: 'student'
+        });
+        
+        setError('');
+        alert('Registration successful! Please login.');
+        setIsRegisterMode(false);
+        setPassword('');
+      } else {
+        // Login existing user
+        const response = await authAPI.login({
+          email,
+          password
+        });
 
-      login(userData);
-      navigate('dashboard');
+        // Store user data in context
+        login(response.user);
+        
+        // Navigate to dashboard
+        navigate('dashboard');
+      }
     } catch (error) {
-      alert('Login failed. Please try again.');
+      console.error('Auth error:', error);
+      setError(
+        error.response?.data?.message || 
+        'Authentication failed. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -49,28 +83,36 @@ export const Login = () => {
         </h1>
 
         <p className="text-center text-gray-600 mb-8">
-          Track your academic progress
+          {isRegisterMode ? 'Create your account' : 'Track your academic progress'}
         </p>
 
-        <div className="space-y-4">
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your name"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg 
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-            />
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            {error}
           </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+
+          {isRegisterMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Choose a username"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg 
+                focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email (Optional)
+              Email
             </label>
             <input
               type="email"
@@ -82,23 +124,53 @@ export const Login = () => {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg 
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            />
+          </div>
+
           <button
-            onClick={handleGoogleSignIn}
-            disabled={isLoading || !name.trim()}
+            type="submit"
+            disabled={isLoading}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white 
             font-semibold py-3 rounded-lg hover:shadow-lg transition 
             disabled:opacity-50 disabled:cursor-not-allowed flex items-center 
             justify-center gap-2"
           >
             <Chrome className="w-5 h-5" />
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading 
+              ? (isRegisterMode ? 'Creating account...' : 'Signing in...') 
+              : (isRegisterMode ? 'Create Account' : 'Sign In')
+            }
           </button>
 
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => {
+              setIsRegisterMode(!isRegisterMode);
+              setError('');
+            }}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            {isRegisterMode 
+              ? 'Already have an account? Sign in' 
+              : "Don't have an account? Register"
+            }
+          </button>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">
-          This is a demo login. Connect to your backend for production use.
-        </p>
+        
 
       </div>
     </div>
