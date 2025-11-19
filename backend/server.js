@@ -1,4 +1,4 @@
-// CRITICAL: This MUST be the first line
+// CRITICAL — Load environment variables first
 require('dotenv').config();
 
 const express = require('express');
@@ -19,12 +19,14 @@ app.use(cors({
   credentials: true
 }));
 
-// Session Configuration
+// Session Middleware
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
+    httpOnly: true,
+    secure: false, // set true ONLY in production with HTTPS
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
@@ -33,17 +35,17 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// MongoDB Connection
+// Connect MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('✅ MongoDB Connected Successfully'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => console.log("✅ MongoDB Connected Successfully"))
+  .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
 // Test Route
 app.get('/', (req, res) => {
   res.json({ message: 'College Dashboard API is running!' });
 });
 
-// Import Routes
+// Routes
 const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/students');
 
@@ -51,19 +53,19 @@ const studentRoutes = require('./routes/students');
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 
-console.log('✅ Routes registered: /api/auth and /api/students');
+console.log("✅ Routes registered: /api/auth and /api/students");
 
-// Error Handling Middleware
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    message: 'Something went wrong!', 
-    error: process.env.NODE_ENV === 'development' ? err.message : {} 
+  res.status(500).json({
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);

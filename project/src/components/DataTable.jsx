@@ -85,9 +85,7 @@ export const DataTable = () => {
 
   return (
     <div>
-      <h2 className="text-3xl font-bold text-gray-800 mb-2">Student Records</h2>
-      <p className="text-gray-600 mb-6">View and manage all student data</p>
-
+    
       {/* Search Bar */}
       <div className="mb-6 flex items-center gap-4">
         <div className="flex-1 relative">

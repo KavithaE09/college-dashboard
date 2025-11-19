@@ -90,8 +90,7 @@ export const StudentForm = () => {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-3xl font-bold text-gray-800 mb-2">Add Student Record</h2>
-      <p className="text-gray-600 mb-8">Enter academic information below</p>
+     
 
       {message.text && (
         <div className={`mb-6 p-4 rounded-lg ${
