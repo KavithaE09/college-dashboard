@@ -15,9 +15,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS Configuration
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: [
+    "http://localhost:5173",
+    "https://dashboard-training.netlify.app"
+  ],
   credentials: true
 }));
+
 
 // Session Middleware
 app.use(session({
