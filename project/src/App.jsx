@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
-import { Dashboard } from './components/Dashboard';
+import Dashboard from './components/Dashboard';  
 
 const AppContent = () => {
   const { isAuthenticated } = useAuth();

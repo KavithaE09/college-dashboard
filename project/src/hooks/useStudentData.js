@@ -3,124 +3,180 @@ import { useState, useEffect } from 'react';
 export const useStudentData = () => {
   const [records, setRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // Load records from localStorage on mount
   useEffect(() => {
-    loadRecords();
-  }, []);
-
-  const loadRecords = () => {
-    try {
-      const storedRecords = localStorage.getItem('studentRecords');
-      if (storedRecords) {
-        const parsed = JSON.parse(storedRecords);
+    const savedRecords = localStorage.getItem('studentRecords');
+    if (savedRecords) {
+      try {
+        const parsed = JSON.parse(savedRecords);
         setRecords(parsed);
         setFilteredRecords(parsed);
+      } catch (error) {
+        console.error('Error loading records:', error);
+        setRecords([]);
+        setFilteredRecords([]);
       }
-    } catch (err) {
-      setError('Failed to load records');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
+  // Save records to localStorage whenever they change
+  useEffect(() => {
+    if (records.length > 0) {
+      localStorage.setItem('studentRecords', JSON.stringify(records));
+    }
+  }, [records]);
+
+  // Add a new record
   const addRecord = (record) => {
-    try {
-      const newRecord = {
-        ...record,
-        _id: Date.now().toString(),
-        createdAt: new Date(),
-      };
-      const updated = [...records, newRecord];
-      setRecords(updated);
-      setFilteredRecords(updated);
-      localStorage.setItem('studentRecords', JSON.stringify(updated));
-      return newRecord;
-    } catch (err) {
-      setError('Failed to add record');
-      throw err;
-    }
-  };
-
-  const deleteRecord = (id) => {
-    try {
-      const updated = records.filter((r) => r._id !== id);
-      setRecords(updated);
-      setFilteredRecords(updated);
-      localStorage.setItem('studentRecords', JSON.stringify(updated));
-    } catch (err) {
-      setError('Failed to delete record');
-    }
-  };
-
-  const calculateStats = () => {
-    const uniqueSubjects = new Set(records.map((r) => r.subject));
-    const totalMarks = records.reduce((sum, r) => sum + r.mark, 0);
-    const averageMarks = records.length > 0 ? Math.round(totalMarks / records.length) : 0;
-
-    return {
-      totalSubjects: uniqueSubjects.size,
-      averageMarks,
-      completedSubjects: records.length,
-      pendingSubjects: 0,
+    const newRecord = {
+      id: Date.now().toString(),
+      ...record,
+      mark: parseInt(record.mark) || 0,
+      createdAt: new Date().toISOString()
     };
+    
+    const updatedRecords = [...records, newRecord];
+    setRecords(updatedRecords);
+    setFilteredRecords(updatedRecords);
+    return newRecord;
   };
 
-  const searchRecords = (query) => {
-    if (!query) {
-      setFilteredRecords(records);
-      return;
-    }
+  // Delete a record
+  const deleteRecord = (id) => {
+    const updatedRecords = records.filter(record => record.id !== id);
+    setRecords(updatedRecords);
+    setFilteredRecords(updatedRecords.filter(record => 
+      matchesSearch(record, searchTerm)
+    ));
+  };
 
-    const lowerQuery = query.toLowerCase();
-    const filtered = records.filter(
-      (record) =>
-        record.name.toLowerCase().includes(lowerQuery) ||
-        record.department.toLowerCase().includes(lowerQuery) ||
-        record.subject.toLowerCase().includes(lowerQuery)
+  // Helper function to check if record matches search
+  const matchesSearch = (record, term) => {
+    if (!term) return true;
+    const lowerTerm = term.toLowerCase();
+    return (
+      record.name?.toLowerCase().includes(lowerTerm) ||
+      record.department?.toLowerCase().includes(lowerTerm) ||
+      record.subject?.toLowerCase().includes(lowerTerm)
     );
-    setFilteredRecords(filtered);
   };
 
-  const sortRecords = (key, order = 'asc') => {
+  // Search records
+  const searchRecords = (term) => {
+    setSearchTerm(term);
+    if (!term) {
+      setFilteredRecords(records);
+    } else {
+      const filtered = records.filter(record => matchesSearch(record, term));
+      setFilteredRecords(filtered);
+    }
+  };
+
+  // Sort records
+  const sortRecords = (field, direction = 'asc') => {
     const sorted = [...filteredRecords].sort((a, b) => {
-      const aVal = a[key];
-      const bVal = b[key];
+      let aVal = a[field];
+      let bVal = b[field];
 
-      if (typeof aVal === 'string') {
-        return order === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      if (field === 'mark') {
+        aVal = parseInt(aVal) || 0;
+        bVal = parseInt(bVal) || 0;
+      } else {
+        aVal = String(aVal || '').toLowerCase();
+        bVal = String(bVal || '').toLowerCase();
       }
-      if (typeof aVal === 'number') {
-        return order === 'asc' ? aVal - bVal : bVal - aVal;
+
+      if (direction === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
       }
-      return 0;
     });
-
     setFilteredRecords(sorted);
   };
 
-  const filterRecords = (key, value) => {
-    const filtered = records.filter((record) => {
-      if (key === 'mark') {
-        return record.mark >= Number(value);
-      }
-      return record[key].toLowerCase().includes(value.toLowerCase());
-    });
+  // Filter records by criteria
+  const filterRecords = (criteria) => {
+    let filtered = [...records];
+
+    if (criteria.department) {
+      filtered = filtered.filter(r => r.department === criteria.department);
+    }
+    if (criteria.subject) {
+      filtered = filtered.filter(r => r.subject === criteria.subject);
+    }
+    if (criteria.minMark !== undefined) {
+      filtered = filtered.filter(r => parseInt(r.mark) >= criteria.minMark);
+    }
+    if (criteria.maxMark !== undefined) {
+      filtered = filtered.filter(r => parseInt(r.mark) <= criteria.maxMark);
+    }
+
     setFilteredRecords(filtered);
+  };
+
+  // Calculate statistics
+  const calculateStats = () => {
+    const totalSubjects = records.length;
+    const uniqueSubjects = new Set(records.map(r => r.subject)).size;
+    
+    const averageMarks = totalSubjects > 0
+      ? Math.round(records.reduce((sum, r) => sum + (parseInt(r.mark) || 0), 0) / totalSubjects)
+      : 0;
+
+    const completedSubjects = records.filter(r => parseInt(r.mark) >= 40).length;
+    const pendingSubjects = records.filter(r => parseInt(r.mark) < 40).length;
+
+    // Data for charts
+    const marksBySubject = records.reduce((acc, record) => {
+      const subject = record.subject || 'Unknown';
+      if (!acc[subject]) {
+        acc[subject] = [];
+      }
+      acc[subject].push(parseInt(record.mark) || 0);
+      return acc;
+    }, {});
+
+    const chartData = Object.keys(marksBySubject).map(subject => ({
+      subject,
+      mark: Math.round(
+        marksBySubject[subject].reduce((a, b) => a + b, 0) / marksBySubject[subject].length
+      )
+    }));
+
+    // Subject distribution for pie chart
+    const subjectDistribution = records.reduce((acc, record) => {
+      const subject = record.subject || 'Unknown';
+      acc[subject] = (acc[subject] || 0) + 1;
+      return acc;
+    }, {});
+
+    const pieData = Object.keys(subjectDistribution).map(subject => ({
+      name: subject,
+      value: subjectDistribution[subject]
+    }));
+
+    return {
+      totalSubjects,
+      uniqueSubjects,
+      averageMarks,
+      completedSubjects,
+      pendingSubjects,
+      chartData,
+      pieData
+    };
   };
 
   return {
     records,
     filteredRecords,
-    loading,
-    error,
+    calculateStats,
     addRecord,
     deleteRecord,
-    calculateStats,
     searchRecords,
     sortRecords,
-    filterRecords,
-    loadRecords,
+    filterRecords
   };
 };
