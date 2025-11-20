@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudentForm } from './StudentForm';
 import { DataTable } from './DataTable';
 import { BarChart, PieChart } from './Charts';
@@ -15,26 +15,102 @@ export default function Dashboard() {
     pendingSubjects: 0,
     chartData: { barChart: [], pieChart: [] }
   });
+  const [allRecords, setAllRecords] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState('all');
+  const [uniqueStudents, setUniqueStudents] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { user, logout } = useAuth();
 
-  // Fetch stats when home tab is active
-  React.useEffect(() => {
+  // Fetch all records when component mounts
+  useEffect(() => {
     if (activeTab === 'home') {
-      fetchStats();
+      fetchAllRecords();
     }
   }, [activeTab]);
 
-  const fetchStats = async () => {
+  // Calculate stats when selected student changes
+  useEffect(() => {
+    if (allRecords.length > 0) {
+      calculateFilteredStats();
+    }
+  }, [selectedStudent, allRecords]);
+
+  const fetchAllRecords = async () => {
+    console.log('🔄 Fetching all records...');
     try {
       setLoading(true);
-      const data = await studentAPI.getStats();
-      setStats(data);
+      setError(null);
+      
+      const records = await studentAPI.getAll();
+      console.log('📚 Records received:', records);
+      
+      setAllRecords(records);
+      
+      // Get unique student names
+      const students = [...new Set(records.map(r => r.name))];
+      setUniqueStudents(students);
+      
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('❌ Error fetching records:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateFilteredStats = () => {
+    let filteredRecords = allRecords;
+    
+    // Filter by selected student
+    if (selectedStudent !== 'all') {
+      filteredRecords = allRecords.filter(r => r.name === selectedStudent);
+    }
+
+    if (filteredRecords.length === 0) {
+      setStats({
+        totalSubjects: 0,
+        averageMarks: 0,
+        completedSubjects: 0,
+        pendingSubjects: 0,
+        chartData: { barChart: [], pieChart: [] }
+      });
+      return;
+    }
+
+    // Calculate statistics
+    const totalSubjects = filteredRecords.length;
+    const totalMarks = filteredRecords.reduce((sum, r) => sum + r.mark, 0);
+    const averageMarks = (totalMarks / totalSubjects).toFixed(2);
+    const completedSubjects = filteredRecords.filter(r => r.mark >= 50).length;
+    const pendingSubjects = filteredRecords.filter(r => r.mark < 50).length;
+
+    // Bar chart data - marks by subject
+    const barChart = filteredRecords.map(r => ({
+      subject: r.subject,
+      mark: r.mark
+    }));
+
+    // Pie chart data - performance distribution
+    const excellent = filteredRecords.filter(r => r.mark >= 80).length;
+    const good = filteredRecords.filter(r => r.mark >= 60 && r.mark < 80).length;
+    const average = filteredRecords.filter(r => r.mark >= 50 && r.mark < 60).length;
+    const needsImprovement = filteredRecords.filter(r => r.mark < 50).length;
+
+    const pieChart = [
+      { name: 'Excellent (80+)', value: excellent },
+      { name: 'Good (60-79)', value: good },
+      { name: 'Average (50-59)', value: average },
+      { name: 'Needs Improvement (<50)', value: needsImprovement }
+    ].filter(item => item.value > 0);
+
+    setStats({
+      totalSubjects,
+      averageMarks: parseFloat(averageMarks),
+      completedSubjects,
+      pendingSubjects,
+      chartData: { barChart, pieChart }
+    });
   };
 
   return (
@@ -118,21 +194,50 @@ export default function Dashboard() {
         {/* Home Tab */}
         {activeTab === 'home' && (
           <div className="p-8">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
                 <p className="text-gray-600">Welcome back! Here's your academic overview.</p>
               </div>
               <button 
-                onClick={fetchStats}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                onClick={fetchAllRecords}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:bg-blue-400"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Refresh
               </button>
             </div>
+
+            {/* Student Filter */}
+            {uniqueStudents.length > 1 && (
+              <div className="mb-6 bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📊 Filter by Student
+                </label>
+                <select
+                  value={selectedStudent}
+                  onChange={(e) => setSelectedStudent(e.target.value)}
+                  className="w-full md:w-auto px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
+                >
+                  <option value="all">All Students ({allRecords.length} records)</option>
+                  {uniqueStudents.map(student => (
+                    <option key={student} value={student}>
+                      {student} ({allRecords.filter(r => r.name === student).length} records)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+                <p className="font-semibold">Error loading data</p>
+                <p className="text-sm mt-1">{error}</p>
+              </div>
+            )}
 
             {loading ? (
               <div className="flex items-center justify-center h-64">
@@ -147,10 +252,10 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <StatsCard title="Total Subjects" value={stats.totalSubjects} icon="📚" color="blue" />
-                  <StatsCard title="Average Marks" value={stats.averageMarks} icon="📊" color="purple" />
-                  <StatsCard title="Completed Subjects" value={stats.completedSubjects} icon="✓" color="green" />
-                  <StatsCard title="Pending Subjects" value={stats.pendingSubjects} icon="⏳" color="orange" />
+                  <StatsCard title="Total Subjects" value={stats.totalSubjects} icon="📚" />
+                  <StatsCard title="Average Marks" value={stats.averageMarks} icon="📊" />
+                  <StatsCard title="Completed Subjects" value={stats.completedSubjects} icon="✓" />
+                  <StatsCard title="Pending Subjects" value={stats.pendingSubjects} icon="⏳" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -160,7 +265,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Subject Distribution</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Performance Distribution</h2>
                     <PieChart data={stats.chartData?.pieChart || []} />
                   </div>
                 </div>

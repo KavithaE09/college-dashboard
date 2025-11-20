@@ -29,50 +29,53 @@ const apiCall = async (endpoint, options = {}) => {
 // STUDENT API
 // -----------------------------
 export const studentAPI = {
+  // Get all students
   getAll: () => apiCall('/students'),
 
+  // Get dashboard statistics
+  getStats: () => apiCall('/students/stats'),
 
+  // Create new student record
   create: (studentData) => apiCall('/students', {
     method: 'POST',
     body: JSON.stringify(studentData),
   }),
 
+  // Update student record
   update: (id, studentData) => apiCall(`/students/${id}`, {
     method: 'PUT',
     body: JSON.stringify(studentData),
   }),
 
+  // Delete student record
   delete: (id) => apiCall(`/students/${id}`, {
     method: 'DELETE',
   }),
 };
 
 // -----------------------------
-// AUTH API  (✔ FIXED)
+// AUTH API
 // -----------------------------
 export const authAPI = {
   // REGISTER
-  register: (formData) =>
-    apiCall('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(formData),
-    }),
+  register: (formData) => apiCall('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(formData),
+  }),
 
   // LOGIN
-  login: (formData) =>
-    apiCall('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(formData),
-    }),
+  login: (formData) => apiCall('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(formData),
+  }),
 
   // CHECK AUTH STATUS
   checkAuth: () => apiCall('/auth/check'),
 
   // LOGOUT
-  logout: () =>
-    apiCall('/auth/logout', {
-      method: 'POST',
-    }),
+  logout: () => apiCall('/auth/logout', {
+    method: 'POST',
+  }),
 };
 
 // Default export

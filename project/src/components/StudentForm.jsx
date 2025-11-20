@@ -165,24 +165,20 @@ export const StudentForm = () => {
               <span className="text-xl">🎓</span>
               Department
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <select
+              name="department"
+              value={formData.department}
+              onChange={handleChange}
+              className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all text-lg appearance-none bg-white cursor-pointer"
+              disabled={loading}
+            >
+              <option value="">Choose a department...</option>
               {departments.map(dept => (
-                <button
-                  key={dept.value}
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, department: dept.value }))}
-                  disabled={loading}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                    formData.department === dept.value
-                      ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
-                      : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="text-3xl mb-2">{dept.icon}</div>
-                  <div className="text-sm font-medium text-gray-700">{dept.value}</div>
-                </button>
+                <option key={dept.value} value={dept.value}>
+                  {dept.icon} {dept.value}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Subject Selection */}
