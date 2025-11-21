@@ -22,6 +22,16 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const { user, logout } = useAuth();
 
+  // ✅ Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('⚠️ No token found, redirecting to login');
+      window.location.href = '/login';
+      return;
+    }
+  }, []);
+
   // Fetch all records when component mounts
   useEffect(() => {
     if (activeTab === 'home') {
@@ -53,6 +63,16 @@ export default function Dashboard() {
       
     } catch (error) {
       console.error('❌ Error fetching records:', error);
+      
+      // ✅ If unauthorized, redirect to login
+      if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+        console.warn('⚠️ Unauthorized - redirecting to login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return;
+      }
+      
       setError(error.message);
     } finally {
       setLoading(false);
@@ -176,7 +196,7 @@ export default function Dashboard() {
         {/* User Section */}
         <div className="mt-auto pt-6 border-t border-blue-500 bg-blue-900 bg-opacity-50 rounded-xl p-4">
           <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Logged in as</p>
-          <p className="font-semibold text-lg mb-4">{user?.displayName || 'User'}</p>
+          <p className="font-semibold text-lg mb-4">{user?.username || user?.email || 'User'}</p>
           <button 
             onClick={logout}
             className="w-full bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl transition-all font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"

@@ -1,106 +1,184 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const passport = require('passport');
-const User = require('../models/User');
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+const auth = require("../middleware/auth");
 
-// Register Route
-router.post('/register', async (req, res) => {
+// Helper → Generate JWT Token
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, email: user.email },
+    process.env.JWT_SECRET || 'fallback-secret-key',
+    { expiresIn: "7d" }
+  );
+};
+
+// --------------------------------------------
+// REGISTER
+// --------------------------------------------
+router.post("/register", async (req, res) => {
   try {
+    console.log('📝 Registration attempt:', req.body);
+    
     const { username, email, password, role } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ 
-        message: 'User with this email or username already exists' 
+    // Validation
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
       });
     }
 
-    // Create new user
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters"
+      });
+    }
+
+    // Check if user exists
+    const existingUser = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { username }],
+    });
+
+    if (existingUser) {
+      console.log('❌ User already exists:', existingUser.email);
+      return res.status(400).json({
+        success: false,
+        message: existingUser.email === email.toLowerCase() 
+          ? "Email already registered" 
+          : "Username already taken",
+      });
+    }
+
+    // Create new user (password will be hashed by pre-save hook in User model)
     const newUser = new User({
-      username,
-      email,
-      password,
-      role: role || 'student'
+      username: username.trim(),
+      email: email.trim().toLowerCase(),
+      password: password, // ← Will be hashed automatically by User model
+      role: role || "student",
     });
 
     await newUser.save();
+    console.log('✅ User registered successfully:', newUser.email);
 
-    res.status(201).json({ 
-      message: 'User registered successfully',
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
       user: {
         id: newUser._id,
         username: newUser.username,
         email: newUser.email,
-        role: newUser.role
-      }
+        role: newUser.role,
+      },
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ 
-      message: 'Error registering user', 
-      error: error.message 
+    console.error("❌ Registration error:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`,
+      });
+    }
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', '),
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Error registering user. Please try again.",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
-// Login Route
-router.post('/login', (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
-    if (err) {
-      return res.status(500).json({ message: 'Authentication error', error: err.message });
-    }
+// --------------------------------------------
+// LOGIN (JWT) - FIXED TO USE BCRYPT
+// --------------------------------------------
+router.post("/login", async (req, res) => {
+  try {
+    console.log('🔐 Login attempt:', req.body.email);
     
-    if (!user) {
-      return res.status(401).json({ message: info.message || 'Invalid credentials' });
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
     }
 
-    req.logIn(user, (err) => {
-      if (err) {
-        return res.status(500).json({ message: 'Login error', error: err.message });
-      }
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase() });
 
-      res.json({
-        message: 'Login successful',
-        user: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          role: user.role
-        }
+    if (!user) {
+      console.log('❌ User not found:', email);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password",
       });
+    }
+
+    // ✅ Use bcrypt to compare password (comparePassword method from User model)
+    const isPasswordValid = await user.comparePassword(password);
+    
+    if (!isPasswordValid) {
+      console.log('❌ Invalid password for:', email);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Generate token
+    const token = generateToken(user);
+    console.log('✅ Login successful:', user.email);
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
     });
-  })(req, res, next);
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Login failed. Please try again.",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
-// Logout Route
-router.post('/logout', (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).json({ message: 'Logout error', error: err.message });
-    }
-    res.json({ message: 'Logout successful' });
+// --------------------------------------------
+// LOGOUT
+// --------------------------------------------
+router.post("/logout", (req, res) => {
+  res.json({ success: true, message: "Logged out successfully" });
+});
+
+// --------------------------------------------
+// CHECK USER (JWT Protected)
+// --------------------------------------------
+router.get("/check", auth, (req, res) => {
+  res.json({
+    authenticated: true,
+    user: req.user,
   });
 });
 
-// Get Current User Route
-router.get('/me', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({
-      user: {
-        id: req.user._id,
-        username: req.user.username,
-        email: req.user.email,
-        role: req.user.role
-      }
-    });
-  } else {
-    res.status(401).json({ message: 'Not authenticated' });
-  }
-});
-
-// IMPORTANT: Export the router correctly
 module.exports = router;

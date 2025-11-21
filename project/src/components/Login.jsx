@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Chrome } from "lucide-react";
-import { useNavigate } from "../hooks/useNavigate";
 import { authAPI } from "../api/api";
 
 export const Login = () => {
@@ -13,7 +12,6 @@ export const Login = () => {
   const [username, setUsername] = useState("");
 
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,20 +42,21 @@ export const Login = () => {
         alert("Registration successful! Please log in.");
         setIsRegisterMode(false);
         setPassword("");
+        setUsername("");
+        setIsLoading(false);
         return;
       }
 
       // LOGIN USER
       const response = await authAPI.login({ email, password });
+      
+      console.log('✅ Login response:', response);
 
-      // 🔥 SAVE JWT TOKEN (VERY IMPORTANT)
-      localStorage.setItem("token", response.token);
+      // ✅ Save user AND token to context (token will be saved to localStorage)
+      // This will trigger a re-render and show Dashboard automatically
+      login(response.user, response.token);
 
-      // Save user to context
-      login(response.user);
-
-      // Navigate correctly
-      navigate("/dashboard");
+      console.log('✅ Login successful, dashboard will load automatically');
 
     } catch (err) {
       console.error("Auth error:", err);
@@ -71,173 +70,47 @@ export const Login = () => {
     <>
       <style>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-
         @keyframes slideInLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-50px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
+          from { opacity: 0; transform: translateX(-50px); }
+          to { opacity: 1; transform: translateX(0); }
         }
-
         @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(50px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
+          from { opacity: 0; transform: translateX(50px); }
+          to { opacity: 1; transform: translateX(0); }
         }
-
         @keyframes bounce {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
         }
-
         @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.05);
-          }
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
         }
-
         @keyframes float {
-          0%, 100% {
-            transform: translateY(0px) rotate(0deg);
-          }
-          50% {
-            transform: translateY(-20px) rotate(5deg);
-          }
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
         }
-
-        @keyframes shimmer {
-          0% {
-            background-position: -1000px 0;
-          }
-          100% {
-            background-position: 1000px 0;
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.8s ease-out;
-        }
-
-        .animate-slideInLeft {
-          animation: slideInLeft 0.8s ease-out;
-        }
-
-        .animate-slideInRight {
-          animation: slideInRight 0.8s ease-out;
-        }
-
-        .animate-bounce-slow {
-          animation: bounce 2s ease-in-out infinite;
-        }
-
-        .animate-pulse-slow {
-          animation: pulse 2s ease-in-out infinite;
-        }
-
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-
-        .input-animate {
-          transition: all 0.3s ease;
-        }
-
-        .input-animate:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .input-animate:focus {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
-        }
-
-        .btn-animate {
-          transition: all 0.3s ease;
-        }
-
-        .btn-animate:hover:not(:disabled) {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 25px rgba(79, 70, 229, 0.5);
-        }
-
-        .btn-animate:active:not(:disabled) {
-          transform: translateY(-1px);
-        }
-
-        .floating-shapes {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          z-index: 0;
-        }
-
-        .shape {
-          position: absolute;
-          opacity: 0.08;
-        }
-
-        .shape:nth-child(1) {
-          top: 10%;
-          left: 10%;
-          width: 150px;
-          height: 150px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 50%;
-          animation: float 6s ease-in-out infinite;
-        }
-
-        .shape:nth-child(2) {
-          top: 60%;
-          right: 10%;
-          width: 200px;
-          height: 200px;
-          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-          border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
-          animation: float 8s ease-in-out infinite;
-          animation-delay: 2s;
-        }
-
-        .shape:nth-child(3) {
-          bottom: 10%;
-          left: 15%;
-          width: 180px;
-          height: 180px;
-          background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-          border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
-          animation: float 7s ease-in-out infinite;
-          animation-delay: 4s;
-        }
-
-        .logo-animate {
-          animation: pulse 2s ease-in-out infinite;
-        }
+        .animate-fadeIn { animation: fadeIn 0.8s ease-out; }
+        .animate-slideInLeft { animation: slideInLeft 0.8s ease-out; }
+        .animate-slideInRight { animation: slideInRight 0.8s ease-out; }
+        .animate-bounce-slow { animation: bounce 2s ease-in-out infinite; }
+        .animate-pulse-slow { animation: pulse 2s ease-in-out infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .input-animate { transition: all 0.3s ease; }
+        .input-animate:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+        .input-animate:focus { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
+        .btn-animate { transition: all 0.3s ease; }
+        .btn-animate:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(79, 70, 229, 0.5); }
+        .btn-animate:active:not(:disabled) { transform: translateY(-1px); }
+        .floating-shapes { position: absolute; width: 100%; height: 100%; overflow: hidden; z-index: 0; }
+        .shape { position: absolute; opacity: 0.08; }
+        .shape:nth-child(1) { top: 10%; left: 10%; width: 150px; height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; animation: float 6s ease-in-out infinite; }
+        .shape:nth-child(2) { top: 60%; right: 10%; width: 200px; height: 200px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; animation: float 8s ease-in-out infinite; animation-delay: 2s; }
+        .shape:nth-child(3) { bottom: 10%; left: 15%; width: 180px; height: 180px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; animation: float 7s ease-in-out infinite; animation-delay: 4s; }
+        .logo-animate { animation: pulse 2s ease-in-out infinite; }
       `}</style>
 
       <div 
@@ -249,7 +122,6 @@ export const Login = () => {
           backgroundBlendMode: 'overlay'
         }}
       >
-        {/* Floating Shapes */}
         <div className="floating-shapes">
           <div className="shape"></div>
           <div className="shape"></div>
@@ -288,8 +160,7 @@ export const Login = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Choose a username"
-                  className="input-animate w-full px-4 py-3 border border-gray-300 rounded-lg 
-                            focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  className="input-animate w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                 />
               </div>
             )}
@@ -303,8 +174,7 @@ export const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
-                className="input-animate w-full px-4 py-3 border border-gray-300 rounded-lg 
-                          focus:ring-2 focus:ring-blue-500 outline-none transition"
+                className="input-animate w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
               />
             </div>
 
@@ -317,8 +187,7 @@ export const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="input-animate w-full px-4 py-3 border border-gray-300 rounded-lg 
-                          focus:ring-2 focus:ring-blue-500 outline-none transition"
+                className="input-animate w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
               />
             </div>
 
@@ -326,17 +195,11 @@ export const Login = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn-animate w-full bg-gradient-to-r from-blue-600 to-indigo-600 
-                          text-white font-semibold py-3 rounded-lg 
-                          transition disabled:opacity-50 flex items-center justify-center"
+                className="btn-animate w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 flex items-center justify-center"
               >
                 {isLoading
-                  ? isRegisterMode
-                    ? "Creating account..."
-                    : "Signing in..."
-                  : isRegisterMode
-                  ? "Create Account"
-                  : "Sign In"}
+                  ? isRegisterMode ? "Creating account..." : "Signing in..."
+                  : isRegisterMode ? "Create Account" : "Sign In"}
               </button>
             </div>
           </form>

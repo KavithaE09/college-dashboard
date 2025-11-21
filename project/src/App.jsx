@@ -5,7 +5,7 @@ import { Login } from './components/Login';
 import Dashboard from './components/Dashboard';  
 
 const AppContent = () => {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -20,7 +20,8 @@ const AppContent = () => {
     );
   }
 
-  return isAuthenticated ? <Dashboard /> : <Login />;
+  // ✅ Check if user exists (simpler and more reliable)
+  return user ? <Dashboard /> : <Login />;
 };
 
 function App() {

@@ -1,85 +1,119 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://college-dashboard-training.onrender.com/api";
+// 🚀 Always use localhost backend
+const API_BASE_URL = "http://localhost:5000/api";
 
+console.log("🔧 API BASE URL:", API_BASE_URL);
 
-// Helper function for API calls
+// -------------------------------------------
+// Helper function for API calls (JWT TOKEN)
+// -------------------------------------------
 const apiCall = async (endpoint, options = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const fullUrl = `${API_BASE_URL}${endpoint}`;
+    console.log("📡 API Call:", fullUrl);
+
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(fullUrl, {
       ...options,
-      credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
         ...options.headers,
       },
     });
 
-    const data = await response.json();
+    console.log("📥 Response:", response.status, response.statusText);
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Something went wrong');
+    if (response.status === 401) {
+      console.warn("⚠️ Unauthorized! Redirecting to login...");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+      throw new Error("Unauthorized - please log in");
     }
 
+    const text = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error("❌ Invalid response:", text.substring(0, 200));
+      throw new Error("Server returned invalid response");
+    }
+
+    if (!response.ok) {
+      console.error("❌ API Error:", data);
+      throw new Error(data.message || "Something went wrong");
+    }
+
+    console.log("✅ Success:", endpoint);
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error("💥 API Error:", error);
     throw error;
   }
 };
 
-// -----------------------------
+// -------------------------------------------
 // STUDENT API
-// -----------------------------
+// -------------------------------------------
 export const studentAPI = {
-  // Get all students
-  getAll: () => apiCall('/students'),
+  getAll: () => apiCall("/students"),
+  getStats: () => apiCall("/students/stats"),
 
-  // Get dashboard statistics
-  getStats: () => apiCall('/students/stats'),
+  create: (studentData) =>
+    apiCall("/students", {
+      method: "POST",
+      body: JSON.stringify(studentData),
+    }),
 
-  // Create new student record
-  create: (studentData) => apiCall('/students', {
-    method: 'POST',
-    body: JSON.stringify(studentData),
-  }),
+  update: (id, studentData) =>
+    apiCall(`/students/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(studentData),
+    }),
 
-  // Update student record
-  update: (id, studentData) => apiCall(`/students/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(studentData),
-  }),
-
-  // Delete student record
-  delete: (id) => apiCall(`/students/${id}`, {
-    method: 'DELETE',
-  }),
+  delete: (id) =>
+    apiCall(`/students/${id}`, {
+      method: "DELETE",
+    }),
 };
 
-// -----------------------------
-// AUTH API
-// -----------------------------
+// -------------------------------------------
+// AUTH API (JWT TOKEN)
+// -------------------------------------------
 export const authAPI = {
-  // REGISTER
-  register: (formData) => apiCall('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(formData),
-  }),
+  register: (formData) =>
+    apiCall("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    }),
 
-  // LOGIN
-  login: (formData) => apiCall('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(formData),
-  }),
+  login: async (formData) => {
+    const data = await apiCall("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
 
-  // CHECK AUTH STATUS
-  checkAuth: () => apiCall('/auth/check'),
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      console.log("🔐 Token saved:", data.token);
+    }
 
-  // LOGOUT
-  logout: () => apiCall('/auth/logout', {
-    method: 'POST',
-  }),
+    return data;
+  },
+
+  checkAuth: () => apiCall("/auth/check"),
+
+  logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    console.log("🚪 Logged out - token removed");
+  },
 };
 
-// Default export
 export default {
   student: studentAPI,
   auth: authAPI,

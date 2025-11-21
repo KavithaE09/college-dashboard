@@ -4,8 +4,6 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const session = require('express-session');
-const passport = require('./config/passport');
 
 const app = express();
 
@@ -17,27 +15,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: [
     "http://localhost:5173",
+    "http://localhost:5174",
     "https://dashboard-training.netlify.app"
   ],
   credentials: true
 }));
-
-
-// Session Middleware
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure: false, // set true ONLY in production with HTTPS
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Passport Middleware
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Connect MongoDB
 mongoose.connect(process.env.MONGODB_URI)

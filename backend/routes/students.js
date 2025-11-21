@@ -1,17 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Student = require('../models/Student');
-
-// Middleware to check if user is authenticated
-const isAuthenticated = (req, res, next) => {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ message: 'Unauthorized' });
-};
+const auth = require('../middleware/auth'); // ← JWT AUTH MIDDLEWARE
 
 // GET all students for logged-in user
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const students = await Student.find({ userId: req.user.id })
       .sort({ createdAt: -1 });
@@ -23,7 +16,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 // GET dashboard statistics
-router.get('/stats', isAuthenticated, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
     const students = await Student.find({ userId: req.user.id });
     
@@ -85,7 +78,7 @@ router.get('/stats', isAuthenticated, async (req, res) => {
 });
 
 // POST create new student record
-router.post('/', isAuthenticated, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
     const { name, department, subject, mark } = req.body;
 
@@ -118,7 +111,7 @@ router.post('/', isAuthenticated, async (req, res) => {
 });
 
 // PUT update student record
-router.put('/:id', isAuthenticated, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
     const { name, department, subject, mark } = req.body;
 
@@ -155,7 +148,7 @@ router.put('/:id', isAuthenticated, async (req, res) => {
 });
 
 // DELETE student record
-router.delete('/:id', isAuthenticated, async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
   try {
     const student = await Student.findOneAndDelete({ 
       _id: req.params.id, 
