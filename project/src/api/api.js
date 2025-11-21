@@ -1,5 +1,7 @@
-// 🚀 Always use localhost backend
-const API_BASE_URL = "http://localhost:5000/api";
+// 🚀 Use environment variable for API URL
+// In development: http://localhost:5000/api
+// In production: Render backend URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://college-dashboard-auad.onrender.com/api";
 
 console.log("🔧 API BASE URL:", API_BASE_URL);
 
@@ -99,7 +101,7 @@ export const authAPI = {
     if (data.token) {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      console.log("🔐 Token saved:", data.token);
+      console.log("🔐 Token saved");
     }
 
     return data;
